@@ -8,7 +8,7 @@
 import SwiftUI
 import MapKit
 
-struct ContentView: View {
+struct TokyoStationCenteredMapView: View {
     @State private var cameraPosition = MapCameraPosition.region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 35.681236, longitude: 139.767125), // 東京駅

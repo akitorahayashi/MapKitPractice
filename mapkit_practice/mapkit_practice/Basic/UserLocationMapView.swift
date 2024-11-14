@@ -4,14 +4,26 @@ import CoreLocation
 
 class ULLocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var userLocation: CLLocation?
+    @Published var authorizationStatus: CLAuthorizationStatus
+    
     private let manager = CLLocationManager()
     
     override init() {
+        authorizationStatus = manager.authorizationStatus
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.requestWhenInUseAuthorization()
         manager.startUpdatingLocation()
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        authorizationStatus = status
+        if status == .authorizedWhenInUse || status == .authorizedAlways {
+            manager.startUpdatingLocation()
+        } else {
+            manager.stopUpdatingLocation()
+        }
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -32,45 +44,42 @@ struct UserLocationMapView: View {
             // マップビュー
             Map(position: $cameraPosition) {
                 if let userLocation = locationManager.userLocation {
-                    // ユーザーの位置を示すマーカーを追加
                     Marker("Your Location", coordinate: userLocation.coordinate)
+                        .tint(Color.blue)
                 }
             }
             .onAppear {
-                // ユーザーの位置が取得できた場合、カメラをその位置に移動
-                if let userLocation = locationManager.userLocation {
-                    cameraPosition = .region(MKCoordinateRegion(
-                        center: userLocation.coordinate,
-                        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                    ))
-                } else {
-                    // 位置情報がまだ取得できない場合は、デフォルトの位置（例: 東京駅）を使用
+                // 位置情報が取得できない場合は東京駅を表示
+                if locationManager.userLocation == nil {
                     cameraPosition = .region(MKCoordinateRegion(
                         center: CLLocationCoordinate2D(latitude: 35.681236, longitude: 139.767125),
                         span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
                     ))
                 }
             }
+            .onChange(of: locationManager.userLocation) { newLocation in
+                // ユーザー位置の更新時にマップの中心をユーザー位置に固定
+                if let location = newLocation {
+                    cameraPosition = .region(MKCoordinateRegion(
+                        center: location.coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                    ))
+                }
+            }
             .edgesIgnoringSafeArea(.all)
+            .disabled(true) // ユーザーのドラッグ操作を無効にする
 
-            // 現在地に戻るボタン
-            VStack {
-                Spacer()
-                Button(action: {
-                    if let userLocation = locationManager.userLocation {
-                        cameraPosition = .region(MKCoordinateRegion(
-                            center: userLocation.coordinate,
-                            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                        ))
-                    }
-                }) {
-                    Image(systemName: "location.fill")
+            // 位置情報の許可メッセージ
+            if locationManager.authorizationStatus == .denied || locationManager.authorizationStatus == .notDetermined {
+                VStack {
+                    Text("位置情報の利用を許可してください")
                         .padding()
                         .background(Color.white)
-                        .clipShape(Circle())
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                         .shadow(radius: 4)
+                        .padding()
+                    Spacer()
                 }
-                .padding()
             }
         }
     }

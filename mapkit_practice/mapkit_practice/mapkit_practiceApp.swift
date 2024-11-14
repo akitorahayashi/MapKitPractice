@@ -11,7 +11,7 @@ import SwiftUI
 struct mapkit_practiceApp: App {
     var body: some Scene {
         WindowGroup {
-            ExperimentView()
+            UserLocationMapView()
         }
     }
 }
